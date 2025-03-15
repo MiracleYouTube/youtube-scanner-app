@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Scanner</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #ff7e5f, #feb47b);
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px;
+            border-radius: 5px;
+            border: none;
+            font-size: 16px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #results {
+            margin-top: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>YouTube Channel Scanner</h1>
+    <p>Find channels with 500+ subs, >10,000 views, <100 videos since Mar 2024</p>
+    <input type="text" id="keyword" placeholder="Enter keyword (e.g., true crime)">
+    <button onclick="searchChannels()">Search</button>
+    <div id="results"></div>
+
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script>
+        gapi.load('client', init);
+        function init() {
+            gapi.client.init({
+                apiKey: 'AIzaSyDMsdOi8m9kjwaV30GJfP0H_iBbbbmTBQk', // Replace with your API key
+                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/youtube/v3/rest']
+            });
+        }
+
+        async function searchChannels() {
+            const keyword = document.getElementById('keyword').value;
+            if (!keyword) {
+                alert('Please enter a keyword!');
+                return;
+            }
+            document.getElementById('results').innerHTML = 'Searching...';
+
+            try {
+                const searchResponse = await gapi.client.youtube.search.list({
+                    part: 'snippet',
+                    type: 'channel',
+                    q: keyword,
+                    maxResults: 50,
+                    order: 'relevance'
+                });
+                const channelIds = searchResponse.result.items.map(item => item.snippet.channelId).join(',');
+
+                const channelsResponse = await gapi.client.youtube.channels.list({
+                    part: 'snippet,statistics',
+                    id: channelIds,
+                    maxResults: 50
+                });
+
+                let results = '';
+                channelsResponse.result.items.forEach(item => {
+                    const publishedAt = new Date(item.snippet.publishedAt);
+                    const startDate = new Date('2024-03-01');
+                    const subs = parseInt(item.statistics.subscriberCount);
+                    const views = parseInt(item.statistics.viewCount || 0);
+                    const videos = parseInt(item.statistics.videoCount || 0);
+
+                    if (publishedAt >= startDate && subs >= 500 && views > 10000 && videos < 100) {
+                        results += `- ${item.snippet.title}: ${subs} subs, ${videos} videos, ${views} views (Created: ${publishedAt.toISOString().split('T')[0]})<br>`;
+                    }
+                });
+                document.getElementById('results').innerHTML = results || 'No channels found matching criteria.';
+            } catch (e) {
+                document.getElementById('results').innerHTML = 'Error: ' + e.message;
+            }
+        }
+    </script>
+</body>
+</html>
